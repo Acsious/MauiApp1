@@ -3,7 +3,7 @@ using System.Linq.Expressions;
 
 namespace MauiApp1.Data
 {
-    public class DatabaseContext
+    public class DatabaseContext : IAsyncDisposable
     {
         private const string DbName = "MyDatabase.db3";
         private static string DbPath => Path.Combine(FileSystem.AppDataDirectory, DbName);
@@ -65,5 +65,8 @@ namespace MauiApp1.Data
             await CreateTableIfNotExist<TTable>();
             return await Database.DeleteAsync<TTable>(primaryKey) > 0;
         }
+
+        public async ValueTask DisposeAsync() => await _connection?.CloseAsync();
+
     }
 }
