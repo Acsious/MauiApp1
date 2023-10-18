@@ -17,7 +17,7 @@ namespace MauiApp1.ViewModels
         }
 
         [ObservableProperty]
-        private ObservableCollection<Product> _products;
+        private ObservableCollection<Product> _products = new();
 
         [ObservableProperty]
         private Product _operatingProduct = new();
@@ -28,8 +28,7 @@ namespace MauiApp1.ViewModels
         [ObservableProperty]
         private string _BusyText;
 
-        [RelayCommand]
-        private async Task LoadProductAsync()
+        public async Task LoadProductAsync()
         {
             await ExecuteAsync(async () =>
             {
@@ -55,6 +54,14 @@ namespace MauiApp1.ViewModels
         {
             if (OperatingProduct is null)
                 return;
+
+            var (IsValid, ErrorMessage) = OperatingProduct.Validate();
+            if (!IsValid)
+            {
+                await Shell.Current.DisplayAlert("Validation Error", ErrorMessage, "ok");
+                return;
+            }
+
             var busyText = OperatingProduct.Id == 0 ? "Creating product" : "Updating product";
             await ExecuteAsync(async () =>
             {
@@ -65,14 +72,21 @@ namespace MauiApp1.ViewModels
                 }
                 else
                 {
-                    await _context.UpdateItemAsync<Product>(OperatingProduct);
+                    if (await _context.UpdateItemAsync<Product>(OperatingProduct))
+                    {
+                        var productCopy = OperatingProduct.Clone();
 
-                    var productCopy = OperatingProduct.Clone();
+                        var index = Products.IndexOf(OperatingProduct);
+                        Products.RemoveAt(index);
 
-                    var index = Products.IndexOf(OperatingProduct);
-                    Products.RemoveAt(index);
+                        Products.Insert(index, productCopy);
+                    }
+                    else
+                    {
+                        await Shell.Current.DisplayAlert("Error", "Can't update product", "ok");
+                        return;
+                    }
 
-                    Products.Insert(index, productCopy);
                 }
                 SetOperatingProductCommand.Execute(new());
             }, busyText);
